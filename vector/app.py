@@ -24,12 +24,17 @@ vector_bucket = os.environ["VECTOR_BUCKET"]
 def lambda_handler(event, context):
     print(f"{event=}")
     print(f"{context=}")
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        data_dir = os.path.join(tmp_dir, "data")
-        persist_dir = os.path.join(tmp_dir, "storage")
-        download_pdf(bucket, key, data_dir)
-        vectorize(data_dir, persist_dir)
-        upload_vector(vector_bucket, persist_dir)
+    for record in event["Records"]:
+        bucket = record["s3"]["bucket"]["name"]
+        key = record["s3"]["object"]["key"]
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            data_dir = os.path.join(tmp_dir, "data")
+            persist_dir = os.path.join(tmp_dir, "storage")
+            os.makedirs(data_dir)
+            os.makedirs(persist_dir)
+            download_pdf(bucket, key, data_dir)
+            vectorize(data_dir, persist_dir)
+            upload_vector(vector_bucket, persist_dir)
 
     return {"statusCode": 200, "body": json.dumps({"message": "ok"})}
 

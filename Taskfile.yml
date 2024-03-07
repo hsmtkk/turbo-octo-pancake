@@ -7,7 +7,7 @@ tasks:
     - task deploy
   build:
     cmds:
-    - sam build
+    - sam build --cached
   deploy:
     cmds:
     - sam deploy --no-confirm-changeset
