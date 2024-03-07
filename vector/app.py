@@ -1,42 +1,55 @@
+import glob
 import json
+import os
+import os.path
+import tempfile
 
-# import requests
+import boto3
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+
+
+def get_secrets() -> dict[str, str]:
+    client = boto3.client("secretsmanager")
+    secretARN = os.environ["SECRET_ARN"]
+    secrets = client.get_secret_value(SecretId=secretARN)
+    decoded = json.loads(secrets["SecretString"])
+    return decoded
+
+
+secrets = get_secrets()
+s3_client = boto3.client("s3")
+vector_bucket = os.environ["VECTOR_BUCKET"]
 
 
 def lambda_handler(event, context):
-    """Sample pure Lambda function
+    print(f"{event=}")
+    print(f"{context=}")
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        data_dir = os.path.join(tmp_dir, "data")
+        persist_dir = os.path.join(tmp_dir, "storage")
+        download_pdf(bucket, key, data_dir)
+        vectorize(data_dir, persist_dir)
+        upload_vector(vector_bucket, persist_dir)
 
-    Parameters
-    ----------
-    event: dict, required
-        API Gateway Lambda Proxy Input Format
+    return {"statusCode": 200, "body": json.dumps({"message": "ok"})}
 
-        Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
 
-    context: object, required
-        Lambda Context runtime methods and attributes
+def download_pdf(bucket: str, key: str, directory: str) -> None:
+    resp = s3_client.get_object(Bucket=bucket, Key=key)
+    path = os.path.join(directory, key)
+    with open(path, "wb") as f:
+        f.write(resp["Body"].read())
 
-        Context doc: https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html
 
-    Returns
-    ------
-    API Gateway Lambda Proxy Output Format: dict
+def vectorize(data_dir: str, persist_dir: str) -> None:
+    documents = SimpleDirectoryReader(data_dir).load_data()
+    index = VectorStoreIndex.from_documents(documents)
+    index.storage_context.persist(persist_dir=persist_dir)
 
-        Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
-    """
 
-    # try:
-    #     ip = requests.get("http://checkip.amazonaws.com/")
-    # except requests.RequestException as e:
-    #     # Send some context about this error to Lambda Logs
-    #     print(e)
-
-    #     raise e
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps({
-            "message": "hello world",
-            # "location": ip.text.replace("\n", "")
-        }),
-    }
+def upload_vector(bucket: str, persist_dir: str):
+    files = glob.glob(os.path.join(persist_dir, "*.json"))
+    for file in files:
+        key = os.path.basename(file)
+        with open(file, "rb") as f:
+            s3_client.put_object(Bucket=bucket, Key=key, Body=f)

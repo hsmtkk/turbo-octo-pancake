@@ -7,6 +7,33 @@ Globals:
     MemorySize: 128
 
 Resources:
+  LINEBotLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: python3.11
+    Properties:
+      CompatibleRuntimes:
+      - python3.11
+      ContentUri: line_bot_layer/
+
+  LlamaIndexLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: python3.11
+    Properties:
+      CompatibleRuntimes:
+      - python3.11
+      ContentUri: llama_index_layer/
+
+  OpenAILayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: python3.11
+    Properties:
+      CompatibleRuntimes:
+      - python3.11
+      ContentUri: openai_layer/
+
   OpenAIFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -17,6 +44,7 @@ Resources:
         Variables:
           DYNAMO_DB_TABLE: !Ref PancakeTable
           SECRET_ARN: !Ref PancakeSecrets
+          VECTOR_BUCKET: !Ref VectorBucket
       Events:
         LINEWebHook:
           Type: Api
@@ -24,6 +52,9 @@ Resources:
             Path: /post
             Method: post
       Handler: app.lambda_handler
+      Layers:
+      - !Ref LINEBotLayer
+      - !Ref OpenAILayer
       Policies:
       - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
       - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
@@ -39,13 +70,30 @@ Resources:
       Environment:
         Variables:
           SECRET_ARN: !Ref PancakeSecrets
+          VECTOR_BUCKET: !Ref VectorBucket
+      Events:
+        S3:
+          Type: S3
+          Properties:
+            Bucket: !Ref PDFBucket
+            Events: s3:ObjectCreated:*
       Handler: app.lambda_handler
+      Layers:
+      - !Ref LlamaIndexLayer
       Policies:
       - arn:aws:iam::aws:policy/AmazonS3FullAccess
       - arn:aws:iam::aws:policy/SecretsManagerReadWrite
       Runtime: python3.11
 
-  PancakeBucket:
+  PDFBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+        - Status: Enabled
+          ExpirationInDays: 1
+
+  VectorBucket:
     Type: AWS::S3::Bucket
 
   PancakeTable:

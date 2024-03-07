@@ -74,5 +74,5 @@ def chat_completion(prompt: str) -> str:
         ],
         model="gpt-4",
     )
-    print(comp) # debug
+    # print(comp) # debug
     return comp.choices[0].message.content
