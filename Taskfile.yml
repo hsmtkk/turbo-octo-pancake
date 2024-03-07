@@ -1,0 +1,13 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+    - task build
+    - task deploy
+  build:
+    cmds:
+    - sam build
+  deploy:
+    cmds:
+    - sam deploy --no-confirm-changeset
