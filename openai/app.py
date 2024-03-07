@@ -1,42 +1,54 @@
 import json
+import os
 
-# import requests
+import boto3
+from linebot.v3 import WebhookHandler
+from linebot.v3.messaging import (
+    ApiClient,
+    Configuration,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage,
+)
+from linebot.v3.models.events import Event
+from linebot.v3.webhooks import MessageEvent, TextMessageContent
+
+# LINE Bot SDK Documents
+# https://line-bot-sdk-python.readthedocs.io/en/stable/
+# https://github.com/line/line-bot-sdk-python/tree/master
+
+
+def get_secrets() -> dict[str, str]:
+    client = boto3.client("secretsmanager")
+    secretARN = os.environ["SECRET_ARN"]
+    secrets = client.get_secret_value(SecretId=secretARN)
+    decoded = json.loads(secrets["SecretString"])
+    return decoded
+
+
+secrets = get_secrets()
+config = Configuration(access_token=secrets["channel-access-token"])
+handler = WebhookHandler(channel_secret=secrets["channel-secret"])
 
 
 def lambda_handler(event, context):
-    """Sample pure Lambda function
 
-    Parameters
-    ----------
-    event: dict, required
-        API Gateway Lambda Proxy Input Format
+    @handler.add(MessageEvent, message=TextMessageContent)
+    def handle_message(event: Event):
+        with ApiClient(config) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            reply_msg_req = ReplyMessageRequest(
+                reply_token=event.reply_token,
+                messages=[TextMessage(text=event.message.text)],
+            )
+            line_bot_api.reply_message_with_http_info(reply_msg_req)
 
-        Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
+    print(f"{event=}")
+    print(f"{context=}")
+    body = event["body"]
+    signature = event["headers"]["x-line-signature"]
+    print(f"{body=}")  # debug
+    print(f"{signature=}")  # debug
+    handler.handle(body, signature)
 
-    context: object, required
-        Lambda Context runtime methods and attributes
-
-        Context doc: https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html
-
-    Returns
-    ------
-    API Gateway Lambda Proxy Output Format: dict
-
-        Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
-    """
-
-    # try:
-    #     ip = requests.get("http://checkip.amazonaws.com/")
-    # except requests.RequestException as e:
-    #     # Send some context about this error to Lambda Logs
-    #     print(e)
-
-    #     raise e
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps({
-            "message": "hello world",
-            # "location": ip.text.replace("\n", "")
-        }),
-    }
+    return {"statusCode": 200, "body": json.dumps({"message": "ok"})}
