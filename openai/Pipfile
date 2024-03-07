@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 line-bot-sdk = "*"
 boto3 = "*"
+openai = "*"
 
 [dev-packages]
 

@@ -13,9 +13,14 @@ from linebot.v3.messaging import (
 from linebot.v3.models.events import Event
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
+from openai import OpenAI
+
 # LINE Bot SDK Documents
 # https://line-bot-sdk-python.readthedocs.io/en/stable/
 # https://github.com/line/line-bot-sdk-python/tree/master
+
+# OpenAI Python
+# https://github.com/openai/openai-python
 
 
 def get_secrets() -> dict[str, str]:
@@ -27,19 +32,21 @@ def get_secrets() -> dict[str, str]:
 
 
 secrets = get_secrets()
-config = Configuration(access_token=secrets["channel-access-token"])
-handler = WebhookHandler(channel_secret=secrets["channel-secret"])
+line_config = Configuration(access_token=secrets["channel-access-token"])
+webhook_handler = WebhookHandler(channel_secret=secrets["channel-secret"])
 
 
 def lambda_handler(event, context):
 
-    @handler.add(MessageEvent, message=TextMessageContent)
+    @webhook_handler.add(MessageEvent, message=TextMessageContent)
     def handle_message(event: Event):
-        with ApiClient(config) as api_client:
+        prompt = event.message.text
+        answer = chat_completion(prompt)
+        with ApiClient(line_config) as api_client:
             line_bot_api = MessagingApi(api_client)
             reply_msg_req = ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=event.message.text)],
+                messages=[TextMessage(text=answer)],
             )
             line_bot_api.reply_message_with_http_info(reply_msg_req)
 
@@ -47,8 +54,25 @@ def lambda_handler(event, context):
     print(f"{context=}")
     body = event["body"]
     signature = event["headers"]["x-line-signature"]
-    print(f"{body=}")  # debug
-    print(f"{signature=}")  # debug
-    handler.handle(body, signature)
+    # print(f"{body=}")  # debug
+    # print(f"{signature=}")  # debug
+    webhook_handler.handle(body, signature)
 
     return {"statusCode": 200, "body": json.dumps({"message": "ok"})}
+
+
+openai_client = OpenAI(api_key=secrets["openai-api-key"])
+
+
+def chat_completion(prompt: str) -> str:
+    comp = openai_client.chat.completions.create(
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        model="gpt-4",
+    )
+    print(comp) # debug
+    return comp.choices[0].message.content
