@@ -10,48 +10,59 @@ Resources:
   OpenAIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: openai/
-      Handler: app.lambda_handler
-      Runtime: python3.11
       Architectures:
-        - x86_64
+      - x86_64
+      CodeUri: openai/
+      Environment:
+        Variables:
+          DYNAMO_DB_TABLE: !Ref PancakeTable
+          SECRET_ARN: !Ref PancakeSecrets
       Events:
         LINEWebHook:
           Type: Api
           Properties:
             Path: /post
             Method: post
+      Handler: app.lambda_handler
       Policies:
       - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
       - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
       - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+      Runtime: python3.11
 
   VectorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: vector/
-      Handler: app.lambda_handler
-      Runtime: python3.11
       Architectures:
-        - x86_64
+      - x86_64
+      CodeUri: vector/
+      Environment:
+        Variables:
+          SECRET_ARN: !Ref PancakeSecrets
+      Handler: app.lambda_handler
       Policies:
       - arn:aws:iam::aws:policy/AmazonS3FullAccess
       - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+      Runtime: python3.11
 
-  TheBucket:
+  PancakeBucket:
     Type: AWS::S3::Bucket
 
-  TheTable:
+  PancakeTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
       KeySchema:
-        AttributeName: id
+      - AttributeName: id
         KeyType: HASH
 
-  TheSecrets:
+  PancakeSecrets:
     Type: AWS::SecretsManager::Secret
 
 Outputs:
   OpenAIEndpoint:
     Description: "API Gateway endpoint URL for Prod environment for First Function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/post/"
