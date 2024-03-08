@@ -19,11 +19,13 @@ Resources:
           Properties:
             Path: /post
             Method: post
+      MemorySize: 512
       PackageType: Image
       Policies:
       - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
       - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
       - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+      Timeout: 60
 
   VectorFunction:
     Type: AWS::Serverless::Function
