@@ -1,11 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
-Globals:
-  Function:
-    Timeout: 10
-    MemorySize: 256
-
 Resources:
   OpenAIFunction:
     Type: AWS::Serverless::Function
@@ -46,10 +41,12 @@ Resources:
           Properties:
             Bucket: !Ref PDFBucket
             Events: s3:ObjectCreated:*
+      MemorySize: 512
       PackageType: Image
       Policies:
       - arn:aws:iam::aws:policy/AmazonS3FullAccess
       - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+      Timeout: 60
 
   PDFBucket:
     Type: AWS::S3::Bucket

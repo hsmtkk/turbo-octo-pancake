@@ -19,6 +19,7 @@ def get_secrets() -> dict[str, str]:
 secrets = get_secrets()
 s3_client = boto3.client("s3")
 vector_bucket = os.environ["VECTOR_BUCKET"]
+os.environ["OPENAI_API_KEY"] = secrets["openai-api-key"]
 
 
 def lambda_handler(event, context):
