@@ -1,0 +1,3 @@
+boto3
+llama-index-core
+llama-index-readers-file

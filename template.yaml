@@ -3,43 +3,16 @@ Transform: AWS::Serverless-2016-10-31
 
 Globals:
   Function:
-    Timeout: 5
-    MemorySize: 128
+    Timeout: 10
+    MemorySize: 256
 
 Resources:
-  LINEBotLayer:
-    Type: AWS::Serverless::LayerVersion
-    Metadata:
-      BuildMethod: python3.11
-    Properties:
-      CompatibleRuntimes:
-      - python3.11
-      ContentUri: line_bot_layer/
-
-  LlamaIndexLayer:
-    Type: AWS::Serverless::LayerVersion
-    Metadata:
-      BuildMethod: python3.11
-    Properties:
-      CompatibleRuntimes:
-      - python3.11
-      ContentUri: llama_index_layer/
-
-  OpenAILayer:
-    Type: AWS::Serverless::LayerVersion
-    Metadata:
-      BuildMethod: python3.11
-    Properties:
-      CompatibleRuntimes:
-      - python3.11
-      ContentUri: openai_layer/
-
   OpenAIFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./openai
     Properties:
-      Architectures:
-      - x86_64
-      CodeUri: openai/
       Environment:
         Variables:
           DYNAMO_DB_TABLE: !Ref PancakeTable
@@ -51,22 +24,18 @@ Resources:
           Properties:
             Path: /post
             Method: post
-      Handler: app.lambda_handler
-      Layers:
-      - !Ref LINEBotLayer
-      - !Ref OpenAILayer
+      PackageType: Image
       Policies:
       - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
       - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
       - arn:aws:iam::aws:policy/SecretsManagerReadWrite
-      Runtime: python3.11
 
   VectorFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./vector
     Properties:
-      Architectures:
-      - x86_64
-      CodeUri: vector/
       Environment:
         Variables:
           SECRET_ARN: !Ref PancakeSecrets
@@ -77,13 +46,10 @@ Resources:
           Properties:
             Bucket: !Ref PDFBucket
             Events: s3:ObjectCreated:*
-      Handler: app.lambda_handler
-      Layers:
-      - !Ref LlamaIndexLayer
+      PackageType: Image
       Policies:
       - arn:aws:iam::aws:policy/AmazonS3FullAccess
       - arn:aws:iam::aws:policy/SecretsManagerReadWrite
-      Runtime: python3.11
 
   PDFBucket:
     Type: AWS::S3::Bucket

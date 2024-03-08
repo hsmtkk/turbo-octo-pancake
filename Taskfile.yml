@@ -10,4 +10,4 @@ tasks:
     - sam build --cached
   deploy:
     cmds:
-    - sam deploy --no-confirm-changeset
+    - sam deploy --no-confirm-changeset --resolve-image-repos
